@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import { glob } from 'glob';
 import * as ini from 'ini';
 import { createCanvas } from 'canvas';
 import { execSync } from 'child_process';

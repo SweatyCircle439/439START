@@ -8,7 +8,7 @@ a start menu for hyprland
 
 
 
-- `building`: [bun](bun.sh)
+- `building`: [bun](https://bun.sh)
 
 ## installing
 
