@@ -2,7 +2,10 @@ import getApplications from "./appsApi";
 import { Fzf } from 'fzf';
 // @ts-ignore
 import application from "./dist/application";
+import defaultConfigStr from "./default.toml" with {"type": "text"}
+import defaultConfig from "./default.toml";
 import * as fs from "fs";
+import path from "path";
 
 try { await Bun.file("/tmp/startMenuAppSpawner").delete(); } catch {}
 await Bun.write("/tmp/startMenuAppSpawner", Bun.file(application));
@@ -109,6 +112,23 @@ process.stdin.on('data', (key) => {
     render();
 });
 
+let customConfig = "";
+
+const customConfigFile = Bun.file(path.join(process.env.HOME as string, ".config/439START/config.toml"));
+if (!await customConfigFile.exists()) {
+    await customConfigFile.write(defaultConfigStr);
+
+    customConfig = defaultConfigStr;
+} else {
+    customConfig = await customConfigFile.text();
+}
+
+const config = {
+    ...defaultConfig,
+    ...Bun.TOML.parse(customConfig)
+};
+
+
 async function render () {
     console.clear();
     const columns = process.stdout.columns;
@@ -117,11 +137,11 @@ async function render () {
     const gradientProps:[number, number, {r: number, g: number, b: number}, {r: number, g: number, b: number}, number] = [
         columns,
         3,
-        {r: 239, g: 159, b: 118},
-        {r: 202, g: 158, b: 230},
+        {r: config.Gradient.from[0], g: config.Gradient.from[1], b: config.Gradient.from[2]},
+        {r: config.Gradient.to[0], g: config.Gradient.to[1], b: config.Gradient.to[2]},
         // {r: 255, g: 0, b: 0},
         // {r: 0, g: 0, b: 255},
-        85
+        config.Gradient.angle
     ];
 
     console.write(`\n \x1b[1;31m`,
