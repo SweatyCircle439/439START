@@ -124,7 +124,8 @@ async function iconToDataUrl(filePath: string) {
     } catch { return null; }
 }
 
-export interface App { name: string; exec: string; icon: string | null; id: number; desktopFileName: string }
+export interface Action { name: string; id: string; exec: string };
+export interface App { name: string; exec: string; icon: string | null; id: number; desktopFileName: string; actions: Action[]; }
 export interface AppDOR extends App { categories: string[] }
 export interface CategorieInfo { displayName: string; description: string | null; icon: string | null; id: string }
 export interface Categorie extends CategorieInfo { apps: App[] }
@@ -154,7 +155,25 @@ async function parseDesktopFile(file: string, id: number) {
     if (!exec) return null;
     const categories = entry.Categories?.split(';').filter(Boolean) || ['Uncategorized'];
     const iconPath = findIconPath(entry.Icon);
-    return { id, name, exec, iconPath, categories, desktopFileName: path.basename(file) };
+    const actions: Action[] = [];
+    for (const parsedKey in parsed) {
+        if (parsedKey.startsWith("Desktop Action")) {
+            actions.push({
+                id: parsedKey.replace("Desktop Action", "").trim(),
+                exec: parsed[parsedKey].Exec,
+                name: parsed[parsedKey].Name,
+            });
+        }
+    }
+    return {
+        id,
+        name,
+        exec,
+        iconPath,
+        categories,
+        desktopFileName: path.basename(file),
+        actions
+    };
 }
 
 async function getDesktopApps() {
@@ -167,10 +186,6 @@ async function getDesktopApps() {
         for (const file of files) {
             // if (fs.statSync(file).isDirectory()) continue;
             const app = await parseDesktopFile(file, idCounter++);
-            if (file.includes("obsidian")) {
-                console.log(file);
-                console.log(app);
-            }
             if (app) apps.push(app as AppDOR);
         }
     }
@@ -180,9 +195,9 @@ async function getDesktopApps() {
 function getAppStreamApps() {
     try {
         const output = execSync('appstreamcli list --only-installed --quiet', { encoding: 'utf-8' });
-        const apps: { name: string; exec?: string; icon?: string; categories?: string[] }[] = [];
+        const apps: { name: string; exec?: string; icon?: string; categories?: string[]; actions: Action[] }[] = [];
         for (const line of output.split('\n').filter(Boolean)) {
-            apps.push({ name: line, exec: line, categories: ['Uncategorized'] });
+            apps.push({ name: line, exec: line, categories: ['Uncategorized'], actions: [] });
         }
         return apps;
     } catch { return []; }
@@ -205,7 +220,8 @@ export default async function getApplications() {
             exec: app.exec!,
             icon: iconData,
             categories: app.categories!,
-            desktopFileName: app.desktopFileName || ''
+            desktopFileName: app.desktopFileName || '',
+            actions: app.actions
         };
         DOR.push(appDOR);
         for (const cat of appDOR.categories) {

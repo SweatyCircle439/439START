@@ -1,4 +1,5 @@
 import getApplications from "./appsApi";
+import type {Action, AppDOR} from "./appsApi.ts";
 import { Fzf } from 'fzf';
 // @ts-ignore
 import application from "./dist/application";
@@ -76,6 +77,28 @@ function getGradientColorAt(
 
 process.stdin.setRawMode(true).setEncoding('utf8');
 
+const fzf = new Fzf(apps.reduce((a, b) => {
+    const display = apps.filter(v => v.name === b.name && v.exec !== b.exec).length > 0 ?
+        `${b.name} (${b.exec.split(" ")[0]!.split("/").pop()})` : b.name;
+    if (a.find(v => v.display === display)) return a;
+
+    a.push({
+        ...b,
+        display
+    });
+
+    for (const action of b.actions) {
+        a.push({
+            ...action,
+            display: `${display} > ${action.name}`,
+        });
+    }
+
+    return a;
+}, [] as ((Action|AppDOR) & { display: string })[]), {
+    selector: (v: (Action|AppDOR) & {display: string}) => v.display
+});
+
 process.stdin.on('data', (key) => {
     // console.log(JSON.stringify(key));
     if (key === '\u0003') {
@@ -95,10 +118,9 @@ process.stdin.on('data', (key) => {
     } else if (typeof key === "string" && key.startsWith("\u001b")) {
         return;
     } else if (key === "\r") {
-        const fzf = new Fzf(apps.map(v => v.name));
         const entries = fzf.find(command);
         if (entries.length > 0) {
-            applicationsApi.send(apps.find(v => v.name === entries[selectIndex]!.item)!
+            applicationsApi.send(entries[selectIndex]!.item
                 .exec.replaceAll(/%./g, "").replaceAll("\"", "").trim());
         }
 
@@ -215,7 +237,6 @@ async function render () {
         ), "ansi") + "🬷\n"
     );
 
-    const fzf = new Fzf(apps.map(v => v.name));
     const entries = fzf.find(command);
     entries.slice(0, rows - 6).forEach((entry, i) =>
         console.log(`${Bun.color(getGradientColorAt(
@@ -226,7 +247,7 @@ async function render () {
             { r: 202, g: 158, b: 230 },
             { r: 48, g: 52, b: 70 },
             90
-        ), "ansi")} ${i === selectIndex? "> " : ""}${entry.item}`)
+        ), "ansi")} ${i === selectIndex? "> " : ""}${entry.item.display}`)
     );
 
     // console.log(`\x1b[2;f`);
