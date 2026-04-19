@@ -1,6 +1,6 @@
 # 439START
 
-a start menu for hyprland
+a start menu for hyprland supporting calculations and application actions.
 
 ## dependencies
 - [ghostty](https://ghostty.org/download)
