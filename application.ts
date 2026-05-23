@@ -4,7 +4,7 @@ await using terminal = new Bun.Terminal({
 });
 
 process.on("message", async (message: string) => {
-    const dispatch = Bun.spawn(["hyprctl", "dispatch", "togglespecialworkspace", "menu"], { terminal });
+    const dispatch = Bun.spawn(["hyprctl", "dispatch", "hl.dsp.workspace.toggle_special(\"menu\")"], { terminal });
     await dispatch.exited;
 
     Bun.spawn(message.split(" "), { terminal });

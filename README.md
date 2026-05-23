@@ -1,6 +1,6 @@
 # 439START
 
-a start menu for hyprland supporting calculations and application actions.
+a start menu for hyprland supporting calculations, application actions and bluetooth.
 
 ## dependencies
 
@@ -19,21 +19,20 @@ a start menu for hyprland supporting calculations and application actions.
 
 Download the "startmenu" binary from the latest release
 
-edit your hyprland.conf
+edit your hyprland.lua
 
-```ini
-# start the start menu
-exec-once = ghostty --class=com.sweatycircle439.startmenu -e /path/to/startmenu
-
-# keybinds
-bind = $mainMod, SPACE, togglespecialworkspace, menu
-bind = $mainMod, R, togglespecialworkspace, menu
-
-# start menu window rules
-windowrulev2 = float,class:com.sweatycircle439.startmenu
-windowrulev2 = move 100%-840 100%-610,class:com.sweatycircle439.startmenu
-windowrulev2 = size 830 600,class:com.sweatycircle439.startmenu
-windowrulev2 = workspace special:menu,class:com.sweatycircle439.startmenu
+```lua
+hl.on("hyprland.start", function()
+    hl.exec_cmd("ghostty --class=com.sweatycircle439.startmenu -e /home/sweatycircle439/WebstormProjects/startMenuV2/dist/startmenu")
+end)
+hl.window_rule({
+    name = "439START",
+    match = { class = "com.sweatycircle439.startmenu" },
+    float = true,
+    center = true,
+    size = "830 600",
+    workspace = "special:menu",
+})
 ```
 
 ## building from source
