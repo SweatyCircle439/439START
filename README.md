@@ -3,12 +3,17 @@
 a start menu for hyprland supporting calculations and application actions.
 
 ## dependencies
+
+### required
 - [ghostty](https://ghostty.org/download)
 - [hyprland](https://wiki.hypr.land/Getting-Started/Installation/)
 
+### for specific features, not needed for base function
+- `bluetooth`: bluetoothctl (from bluez, should be installed on your system already)
+- `bluetooth`: [nerdfont](https://www.nerdfonts.com/font-downloads)
 
-
-- `building`: [bun](https://bun.sh)
+### for development
+- [bun](https://bun.sh)
 
 ## installing
 

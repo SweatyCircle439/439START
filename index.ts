@@ -2,11 +2,12 @@ import getApplications from "./appsApi";
 import type {Action, AppDOR} from "./appsApi.ts";
 import { Fzf } from 'fzf';
 // @ts-ignore
-import application from "./dist/application";
+import application from "./dist/application" with {"type": "file"};
 import defaultConfigStr from "./default.toml" with {"type": "text"}
 import defaultConfig from "./default.toml";
 import * as fs from "fs";
 import path from "path";
+import * as BT from "./bluetooth.ts";
 
 try { await Bun.file("/tmp/startMenuAppSpawner").delete(); } catch {}
 await Bun.write("/tmp/startMenuAppSpawner", Bun.file(application));
@@ -77,7 +78,7 @@ function getGradientColorAt(
 
 process.stdin.setRawMode(true).setEncoding('utf8');
 
-const fzf = new Fzf(apps.reduce((a, b) => {
+const applications = apps.reduce((a, b) => {
     const display = apps.filter(v => v.name === b.name && v.exec !== b.exec).length > 0 ?
         `${b.name} (${b.exec.split(" ")[0]!.split("/").pop()})` : b.name;
     if (a.find(v => v.display === display)) return a;
@@ -95,9 +96,71 @@ const fzf = new Fzf(apps.reduce((a, b) => {
     }
 
     return a;
-}, [] as ((Action|AppDOR) & { display: string })[]), {
-    selector: (v: (Action|AppDOR) & {display: string}) => v.display
-});
+}, [] as ((Action|AppDOR) & { display: string })[]);
+
+let menu: "applications"|"bluetooth" = "applications";
+let bt: {
+    bluetoothMac: string;
+    display: string;
+    connected: boolean;
+    problematic: boolean;
+    paired: boolean;
+}[] = [];
+
+void async function updateBT() {
+    while (true) {
+        bt = [];
+
+        function createOut(device: any) {
+            return {
+                bluetoothMac: device.mac,
+                display: `${device.device!.icon} ${device.device!.name} ${
+                    device.device!.paired &&
+                    !device.device!.bonded ? "" :
+                        device.device!.paired ? " " : ""
+                }${
+                    device.device!.connected ? " " : " "
+                }`,
+                connected: device.device!.connected,
+                problematic: device.device!.paired &&
+                    !device.device!.bonded,
+                paired: device.device!.paired
+            };
+        }
+
+        for await (const device of BT.scan()) {
+            if (device.action === "remove") {
+                bt.splice(bt.findIndex(v => v.bluetoothMac === device.mac), 1);
+            } else if (device.action === "create") {
+                bt.push(createOut(device));
+                render();
+            } else if (device.action === "update") {
+                bt.splice(bt.findIndex(v => v.bluetoothMac === device.mac), 1, createOut(device));
+            }
+        }
+    }
+}()
+
+const fzf = () => new Fzf(
+[
+        ...(menu === "bluetooth" ? bt : applications),
+        {
+            display: ":bt",
+            menu: "bluetooth",
+        }, {
+            display: ":apps",
+            menu: "applications",
+        }, {
+            display: "@bt",
+            menu: "bluetooth",
+        }, {
+            display: "@apps",
+            menu: "applications",
+        }
+    ], {
+        selector: (v: {display: string}) => v.display
+    }
+);
 
 process.stdin.on('data', (key) => {
     // console.log(JSON.stringify(key));
@@ -118,10 +181,29 @@ process.stdin.on('data', (key) => {
     } else if (typeof key === "string" && key.startsWith("\u001b")) {
         return;
     } else if (key === "\r") {
-        const entries = fzf.find(command);
+        const entries = fzf().find(command);
         if (entries.length > 0) {
-            applicationsApi.send(entries[selectIndex]!.item
-                .exec.replaceAll(/%./g, "").replaceAll("\"", "").trim());
+            if (!entries[selectIndex]) return;
+            if ((entries[selectIndex]!.item as any).menu) {
+                menu = (entries[selectIndex]!.item as any).menu;
+            } else if ((entries[selectIndex]!.item as any).bluetoothMac) {
+                if ((entries[selectIndex]!.item as any).problematic) {
+                    BT.remove((entries[selectIndex]!.item as any).bluetoothMac);
+                }
+                else if ((entries[selectIndex]!.item as any).connected)
+                    BT.disConnect((entries[selectIndex]!.item as any).bluetoothMac)
+                else {
+                    void async function () {
+                        if (!(entries[selectIndex]!.item as any).paired) {
+                            await BT.pair((entries[selectIndex]!.item as any).bluetoothMac);
+                        }
+                        await BT.connect((entries[selectIndex]!.item as any).bluetoothMac)
+                    }();
+                }
+            } else {
+                applicationsApi.send((entries[selectIndex]!.item as any)
+                    .exec.replaceAll(/%./g, "").replaceAll("\"", "").trim());
+            }
         }
 
         command = "";
@@ -237,7 +319,7 @@ async function render () {
         ), "ansi") + "🬷\n"
     );
 
-    const entries = fzf.find(command);
+    const entries = fzf().find(command);
     entries.slice(0, rows - 6).forEach((entry, i) =>
         console.log(`${Bun.color(getGradientColorAt(
             0,
