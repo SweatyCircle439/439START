@@ -178,9 +178,7 @@ const fzf = () => new Fzf(
 
 process.stdin.on('data', (key) => {
     // console.log(JSON.stringify(key));
-    if (key === '\u0003') {
-        process.exit();
-    } else if (key === "") {
+    if (key === "") {
         command = command.slice(0, command.length - 1);
         render();
         return;
