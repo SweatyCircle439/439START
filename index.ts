@@ -3,11 +3,12 @@ import type {Action, AppDOR} from "./appsApi.ts";
 import { Fzf } from 'fzf';
 // @ts-ignore
 import application from "./dist/application" with {"type": "file"};
-import defaultConfigStr from "./default.toml" with {"type": "text"}
-import defaultConfig from "./default.toml";
+import defaultConfigStr from "./default.toml" with {"type": "text"};
 import * as fs from "fs";
 import path from "path";
 import * as BT from "./bluetooth.ts";
+
+const defaultConfig = Bun.TOML.parse(defaultConfigStr) as any;
 
 try { await Bun.file("/tmp/startMenuAppSpawner").delete(); } catch {}
 await Bun.write("/tmp/startMenuAppSpawner", Bun.file(application));
@@ -141,24 +142,37 @@ void async function updateBT() {
     }
 }()
 
+let customConfig = "";
+
+const customConfigFile = Bun.file(path.join(process.env.HOME as string, ".config/439START/config.toml"));
+if (!await customConfigFile.exists()) {
+    await customConfigFile.write(defaultConfigStr);
+
+    customConfig = defaultConfigStr;
+} else {
+    customConfig = await customConfigFile.text();
+}
+
+const config = {
+    ...defaultConfig,
+    ...Bun.TOML.parse(customConfig)
+};
+
 const fzf = () => new Fzf(
-[
+    [
         ...(menu === "bluetooth" ? bt : applications),
-        {
-            display: ":bt",
-            menu: "bluetooth",
-        }, {
-            display: ":apps",
-            menu: "applications",
-        }, {
-            display: "@bt",
-            menu: "bluetooth",
-        }, {
-            display: "@apps",
-            menu: "applications",
-        }
+        ...config.Items.pagePrefixes.flatMap((v: string) => [
+            {
+                display: `${v}bt [Page]`,
+                menu: "bluetooth"
+            },
+            {
+                display: `${v}apps [Page]`,
+                menu: "applications"
+            }
+        ])
     ], {
-        selector: (v: {display: string}) => v.display
+        selector: (v: { display: string }) => v.display
     }
 );
 
@@ -215,22 +229,6 @@ process.stdin.on('data', (key) => {
     command += key;
     render();
 });
-
-let customConfig = "";
-
-const customConfigFile = Bun.file(path.join(process.env.HOME as string, ".config/439START/config.toml"));
-if (!await customConfigFile.exists()) {
-    await customConfigFile.write(defaultConfigStr);
-
-    customConfig = defaultConfigStr;
-} else {
-    customConfig = await customConfigFile.text();
-}
-
-const config = {
-    ...defaultConfig,
-    ...Bun.TOML.parse(customConfig)
-};
 
 
 async function render () {
@@ -326,8 +324,8 @@ async function render () {
             i,
             1,
             rows - 6,
-            { r: 202, g: 158, b: 230 },
-            { r: 48, g: 52, b: 70 },
+            {r: config.Items.Gradient.from[0], g: config.Items.Gradient.from[1], b: config.Items.Gradient.from[2]},
+            {r: config.Items.Gradient.to[0], g: config.Items.Gradient.to[1], b: config.Items.Gradient.to[2]},
             90
         ), "ansi")} ${i === selectIndex? "> " : ""}${entry.item.display}`)
     );

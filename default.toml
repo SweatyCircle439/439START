@@ -1,5 +1,14 @@
 # Input box gradient
 [Gradient]
 from = [239, 159, 118]
-to = [202, 158, 230]
+to =   [202, 158, 230]
 angle = 85
+
+[Items]
+# A list of prefixes that will be used to switch page. eg @ makes @bt switch to the bluetooth page
+pagePrefixes = [":", "@", "="]
+
+# Item list gradient, does not support angle
+[Items.Gradient]
+from = [202, 158, 230]
+to =   [48,  52,  70 ]
